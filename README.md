@@ -70,22 +70,9 @@ Rows are split **by segment** using `GroupKFold(n_splits=5)`. A segment's data n
 
 ### Statistical Feature Models
 
-Classical ML and ANN trained on the hand-crafted feature row described above.
-
-Naive baseline — predict `sdi_last_known` unchanged: R² = **0.41**, RMSE = **0.81**
-
-| Model | CV R² | ± std | RMSE |
-|---|---|---|---|
-| **Random Forest** | **0.7754** | 0.0500 | 0.4935 |
-| Ridge | 0.7672 | 0.0470 | 0.5033 |
-| Linear Regression | 0.7669 | 0.0470 | 0.5037 |
-| Gradient Boosting | 0.7518 | 0.0504 | 0.5190 |
-| SVR | 0.7392 | 0.0890 | 0.5270 |
-| ANN | 0.7131 | 0.0729 | 0.5541 |
+Classical ML and ANN trained on the hand-crafted feature row described above. Naive baseline — predict `sdi_last_known` unchanged: R² = **0.41**, RMSE = **0.81**
 
 **Feature importance (Random Forest):** `sdi_last_known` accounts for 76.7% of importance. Engineering features contribute < 25% combined, meaning the dominant signal is the segment's most recent known condition.
-
-Note: Gradient Boosting ranks first in Approach 2 (random split) but falls behind Random Forest here. With only 306 samples and segment-level splitting, boosting's sequential nature makes it more sensitive to fold composition.
 
 ---
 
@@ -107,6 +94,14 @@ Instead of summarising history into hand-crafted statistics, sequence models con
 ---
 
 ### Results (Approach 1)
+
+#### Prediction Examples
+
+Four representative test segments from fold 1. The blue line shows the known SDI history; the star (★) is the true held-out value; coloured markers are model predictions at the final age.
+
+![Approach 1 prediction examples](figures/approach1_predictions.png)
+
+#### Full Model Comparison
 
 All models, segment-level GroupKFold, 5 folds:
 
@@ -178,14 +173,3 @@ SDI(t) = a · exp(-(t / b)^c)
 | Ridge | 0.3303 | 0.0070 | 0.8040 |
 | Linear Regression | 0.3303 | 0.0070 | 0.8040 |
 
----
-
-## Key Findings
-
-- **Random Forest + statistical features + segment split (R² = 0.775)** is the best overall approach. The dominant predictor is `sdi_last_known` (76.7% feature importance) — the most recent known condition is by far the strongest signal.
-- **Gradient Boosting (R² = 0.645)** is the best model when no historical SDI is available (Approach 2, random split).
-- **Plain sequence models (RNN/GRU/LSTM, R² ≈ 0.39–0.42)** underperform with only 306 segments — too few samples to reliably learn temporal patterns, with high fold-to-fold variance (std up to 0.15).
-- **LSTM + sdi_last_known + delta_age (R² = 0.668)** is the best sequence model. Explicitly concatenating the most recent SDI and forecast horizon at the output head confirms the bottleneck was not model capacity but the difficulty of discovering the most informative time step from the sequence alone.
-- **LSTM → (a,b,c) → formula (R² = 0.605)** shows the Weibull structure provides a useful inductive bias even with limited data.
-- **LSTM + Weibull dual loss (R² = 0.091)** fails — a globally-fitted formula is a poor anchor for individual segment predictions, and the conflicting gradients destabilise training.
-- **The R² ceiling for Approach 2 (~0.65)** reflects missing information: construction quality, subgrade condition, local climate, and maintenance history are not in the dataset.
